@@ -12,8 +12,10 @@ import { MdDeleteOutline } from "react-icons/md";
 function App() {
   const [todo, setTodo] = useState('');
   const [todos, setTodos] = useState([]);
-  const [showfinished, setshowfinished] = useState(true);
+  const [open, setOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState(null);
 
+  // Load todos from localStorage on initial render
   useEffect(() => {
     const todoString = localStorage.getItem('todos');
     if (todoString) {
@@ -22,22 +24,21 @@ function App() {
     }
   }, []);
 
-  const toggleFinished = () => {
-    setshowfinished(!showfinished);
-  };
-
+  // Save todos to localStorage
   const savetoLS = (updatedTodos) => {
     localStorage.setItem('todos', JSON.stringify(updatedTodos));
   };
 
+  // Add a new todo
   const handleAdd = () => {
-    const newTodo = { id: uuidv4(), todo, isCompleted: false };
+    const newTodo = { id: uuidv4(), todo, isCompleted: false, isPriority: false };
     const updatedTodos = [...todos, newTodo];
     setTodos(updatedTodos);
     setTodo('');
     savetoLS(updatedTodos);
   };
 
+  // Edit a todo
   const handleEdit = (e, id) => {
     const todoToEdit = todos.find((item) => item.id === id);
     setTodo(todoToEdit.todo);
@@ -46,16 +47,19 @@ function App() {
     savetoLS(updatedTodos);
   };
 
+  // Handle input change
   const handleChange = (e) => {
     setTodo(e.target.value);
   };
 
+  // Delete a todo
   const handleDelete = (e, id) => {
     const updatedTodos = todos.filter((item) => item.id !== id);
     setTodos(updatedTodos);
     savetoLS(updatedTodos);
   };
 
+  // Handle checkbox change to mark task as completed
   const handleCheckbox = (e) => {
     const id = e.target.name;
     const updatedTodos = todos.map((item) =>
@@ -65,9 +69,18 @@ function App() {
     savetoLS(updatedTodos);
   };
 
-  const [open, setOpen] = useState(false);
-  const [deleteId, setDeleteId] = useState(null);
+  // Toggle priority of a todo
+  const handlePriority = (id) => {
+    const updatedTodos = todos.map((item) =>
+      item.id === id ? { ...item, isPriority: !item.isPriority } : item
+    );
+    // Sort priority tasks to the top
+    updatedTodos.sort((a, b) => b.isPriority - a.isPriority);
+    setTodos(updatedTodos);
+    savetoLS(updatedTodos);
+  };
 
+  // Handle dialog open/close
   const handleClickOpen = (id) => {
     setDeleteId(id);
     setOpen(true);
@@ -103,10 +116,6 @@ function App() {
                 Save
               </button>
             </div>
-            <div className="checkb flex items-center my-5 gap-3">
-              <input onChange={toggleFinished} type="checkbox" checked={showfinished} />
-              <label className="text-[14px] md:text-[16px]">Show Finished</label>
-            </div>
             <div className="flex justify-center">
               <div className="hr w-full md:w-[40vw] bg-gray-400 h-0.5"></div>
             </div>
@@ -115,53 +124,62 @@ function App() {
             </div>
             <div className="todos flex flex-col gap-3">
               {todos.length === 0 && <div className="m-5">No todos to be displayed</div>}
-              {todos.map((item) => {
-                return (showfinished || !item.isCompleted) && (
-                  <div key={item.id} className="todo-item flex items-center justify-between p-2 bg-white rounded-lg shadow-md">
-                    <input
-                      name={item.id}
-                      onChange={handleCheckbox}
-                      type="checkbox"
-                      checked={item.isCompleted}
-                    />
-                    <div className={`${item.isCompleted ? 'line-through' : ''} flex-grow px-2`}>
-                      {item.todo}
-                    </div>
-                    <div className="buttons flex gap-2">
-                      <button
-                        onClick={(e) => handleEdit(e, item.id)}
-                        className="edit text-white bg-purple-500 text-[16px] px-2 py-1 rounded-3xl"
-                      >
-                        <FiEdit2 />
-                      </button>
-                      <button
-                        onClick={() => handleClickOpen(item.id)}
-                        className="text-white bg-purple-500 text-[16px] px-2 py-1 rounded-3xl"
-                      >
-                        <MdDeleteOutline />
-                      </button>
-                    </div>
-                    <Dialog open={open} onClose={handleClose}>
-                      <DialogTitle>Do you really wish to delete this?</DialogTitle>
-                      <DialogActions>
-                        <Button onClick={handleClose} color="primary">
-                          Close
-                        </Button>
-                        <Button
-                          onClick={(e) => {
-                            handleDelete(e, deleteId);
-                            handleClose();
-                          }}
-                          color="primary"
-                          autoFocus
-                        >
-                          Yes
-                        </Button>
-                      </DialogActions>
-                    </Dialog>
+              {todos.map((item) => (
+                <div
+                  key={item.id}
+                  className="todo-item flex items-center justify-between p-2 bg-white rounded-lg shadow-md"
+                >
+                  <input
+                    name={item.id}
+                    onChange={handleCheckbox}
+                    type="checkbox"
+                    checked={item.isCompleted}
+                  />
+                  <div className={`${item.isCompleted ? 'line-through' : ''} flex-grow px-2`}>
+                    {item.todo}
                   </div>
-                );
-              })}
+                  <div className="buttons flex gap-2">
+                    <button
+                      onClick={(e) => handleEdit(e, item.id)}
+                      className="edit text-white bg-purple-500 text-[16px] px-2 py-1 rounded-3xl"
+                    >
+                      <FiEdit2 />
+                    </button>
+                    <button
+                      onClick={() => handleClickOpen(item.id)}
+                      className="text-white bg-purple-500 text-[16px] px-2 py-1 rounded-3xl"
+                    >
+                      <MdDeleteOutline />
+                    </button>
+                    <button
+                      onClick={() => handlePriority(item.id)}
+                      className={`text-white ${
+                        item.isPriority ? 'bg-red-500' : 'bg-purple-500'
+                      } text-[16px] px-2 py-1 rounded-3xl`}
+                    >
+                      {item.isPriority ? 'Unprioritize' : 'Prioritize'}
+                    </button>
+                  </div>
+                  <Dialog open={open} onClose={handleClose}>
+                    <DialogTitle>Do you really wish to delete this?</DialogTitle>
+                    <DialogActions>
+                      <Button onClick={handleClose} color="primary">
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          handleDelete(null, deleteId);
+                          handleClose();
+                        }}
+                        color="primary"
+                        autoFocus
+                      >
+                        Yes
+                      </Button>
+                    </DialogActions>
+                  </Dialog>
+                </div>
+              ))}
             </div>
           </div>
         </div>
